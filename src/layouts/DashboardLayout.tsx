@@ -57,7 +57,7 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
   );
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "sans-serif" }}>
+    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "sans-serif", maxWidth: "100%", overflowX: "hidden" }}>
       <style>{`
         .aews-sidebar {
           width: 240px;
@@ -74,6 +74,10 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
         }
         .aews-hamburger { display: none; }
         .aews-backdrop { display: none; }
+        .aews-main {
+          overflow-x: hidden;
+          max-width: 100%;
+        }
 
         @media (max-width: 768px) {
           .aews-sidebar {
