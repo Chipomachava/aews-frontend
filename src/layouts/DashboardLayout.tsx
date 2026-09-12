@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   IconLayoutDashboard,
@@ -13,6 +14,8 @@ import {
   IconAdjustments,
   IconSchool,
   IconFile,
+  IconMenu2,
+  IconX,
 } from "@tabler/icons-react";
 import { logout } from "../api";
 
@@ -24,10 +27,16 @@ interface Props {
 
 function DashboardLayout({ children, userEmail, userRole }: Props) {
   const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const goTo = (path: string) => {
+    navigate(path);
+    setMobileOpen(false);
+  };
 
   const navItem = (icon: ReactNode, label: string, path: string) => (
     <div
-      onClick={() => navigate(path)}
+      onClick={() => goTo(path)}
       style={{
         display: "flex",
         alignItems: "center",
@@ -49,29 +58,69 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "sans-serif" }}>
-      {/* Sidebar - sticky to viewport, own internal scroll for nav, logout pinned to its bottom */}
-      <div
-        style={{
-          width: "240px",
-          flexShrink: 0,
-          background: "#fff",
-          borderRight: "1px solid #e5e5e5",
-          position: "sticky",
-          top: 0,
-          height: "100vh",
-          alignSelf: "flex-start",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
+      <style>{`
+        .aews-sidebar {
+          width: 240px;
+          flex-shrink: 0;
+          background: #fff;
+          border-right: 1px solid #e5e5e5;
+          position: sticky;
+          top: 0;
+          height: 100vh;
+          align-self: flex-start;
+          display: flex;
+          flex-direction: column;
+          z-index: 30;
+        }
+        .aews-hamburger { display: none; }
+        .aews-backdrop { display: none; }
+
+        @media (max-width: 768px) {
+          .aews-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            transform: translateX(-100%);
+            transition: transform 0.2s ease;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+          }
+          .aews-sidebar.open {
+            transform: translateX(0);
+          }
+          .aews-hamburger {
+            display: flex !important;
+          }
+          .aews-backdrop.open {
+            display: block;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 20;
+          }
+          .aews-main {
+            width: 100%;
+          }
+        }
+      `}</style>
+
+      {/* Mobile backdrop */}
+      <div className={`aews-backdrop ${mobileOpen ? "open" : ""}`} onClick={() => setMobileOpen(false)} />
+
+      {/* Sidebar */}
+      <div className={`aews-sidebar ${mobileOpen ? "open" : ""}`}>
         <div style={{ flex: 1, overflowY: "auto", padding: "20px 12px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 8px 24px" }}>
-            <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: "#4338ca", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: "bold" }}>
-              A
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 8px 24px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: "#4338ca", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: "bold" }}>
+                A
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "15px" }}>AEWS</div>
+                <div style={{ fontSize: "11px", color: "#888" }}>Academic Early Warning</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: "15px" }}>AEWS</div>
-              <div style={{ fontSize: "11px", color: "#888" }}>Academic Early Warning</div>
+            <div className="aews-hamburger" onClick={() => setMobileOpen(false)} style={{ cursor: "pointer", color: "#888" }}>
+              <IconX size={20} />
             </div>
           </div>
 
@@ -95,7 +144,6 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
           )}
         </div>
 
-        {/* Logout - always pinned to the bottom of the sidebar */}
         <div style={{ padding: "12px", borderTop: "1px solid #eee" }}>
           <div
             onClick={logout}
@@ -120,13 +168,13 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
       </div>
 
       {/* Main content */}
-      <div style={{ flex: 1, background: "#f7f7fa", minWidth: 0 }}>
+      <div className="aews-main" style={{ flex: 1, background: "#f7f7fa", minWidth: 0 }}>
         <div
           style={{
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             alignItems: "center",
-            padding: "14px 32px",
+            padding: "14px 20px",
             background: "#fff",
             borderBottom: "1px solid #e5e5e5",
             position: "sticky",
@@ -134,6 +182,12 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
             zIndex: 10,
           }}
         >
+          <div className="aews-hamburger" onClick={() => setMobileOpen(true)} style={{ cursor: "pointer", color: "#1a1a1a" }}>
+            <IconMenu2 size={22} />
+          </div>
+
+          <div style={{ flex: 1 }} />
+
           <div style={{ textAlign: "right", marginRight: "12px" }}>
             <div style={{ fontSize: "13px", fontWeight: 600 }}>{userEmail}</div>
             <div style={{ fontSize: "12px", color: "#888" }}>{userRole}</div>
@@ -149,6 +203,7 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
+              flexShrink: 0,
             }}
             title="Logout"
           >
