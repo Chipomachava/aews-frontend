@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 import api from "../api";
 import DashboardLayout from "../layouts/DashboardLayout";
-import { IconUpload } from "@tabler/icons-react";
+import { IconUpload, IconDownload } from "@tabler/icons-react";
 
 interface ModuleInfo {
   moduleID: number;
@@ -43,6 +44,27 @@ function UploadCSV() {
     };
     loadData();
   }, []);
+
+  const handleDownloadTemplate = () => {
+    const sampleRows = [
+      { studentNumber: "2021283144", Assessment: 75, Test1: 68, Test2: 72, Test3: 70, Attendance: 90 },
+      { studentNumber: "2022114455", Assessment: 60, Test1: 55, Test2: 58, Test3: 62, Attendance: 78 },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleRows);
+    worksheet["!cols"] = [
+      { wch: 16 }, // studentNumber
+      { wch: 12 }, // Assessment
+      { wch: 10 }, // Test1
+      { wch: 10 }, // Test2
+      { wch: 10 }, // Test3
+      { wch: 12 }, // Attendance
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Marks Template");
+    XLSX.writeFile(workbook, "AEWS_marks_upload_template.xlsx");
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,12 +108,26 @@ function UploadCSV() {
 
   return (
     <DashboardLayout userEmail={user?.email} userRole={user?.role}>
-      <h1 style={{ margin: "0 0 4px", fontSize: "22px", color: "#1a1a1a" }}>Upload CSV</h1>
+      <h1 style={{ margin: "0 0 4px", fontSize: "22px", color: "#1a1a1a" }}>Upload Data</h1>
       <p style={{ color: "#555", margin: "0 0 24px", fontSize: "14px" }}>
-        Upload assessment data for one of your modules.
+        Upload assessment data for one of your modules. CSV and Excel (.xlsx) files are both supported.
       </p>
 
-      <div style={{ background: "#fff", borderRadius: "10px", border: "1px solid #eee", padding: "24px", maxWidth: "520px" }}>
+      <div style={{ background: "#fff", borderRadius: "10px", border: "1px solid #eee", padding: "24px", maxWidth: "560px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", paddingBottom: "16px", borderBottom: "1px solid #f0f0f0" }}>
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "#1a1a1a" }}>Need the correct format?</div>
+            <div style={{ fontSize: "12.5px", color: "#666", marginTop: "2px" }}>Download a ready-made Excel template with sample rows.</div>
+          </div>
+          <button
+            onClick={handleDownloadTemplate}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#fff", color: "#1e8e3e", border: "1px solid #1e8e3e", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: 500, whiteSpace: "nowrap" }}
+          >
+            <IconDownload size={15} />
+            Get template
+          </button>
+        </div>
+
         <form onSubmit={handleUpload}>
           <div style={{ marginBottom: "18px" }}>
             <label style={{ fontSize: "13px", color: "#555", fontWeight: 500 }}>Module</label>
@@ -114,11 +150,11 @@ function UploadCSV() {
           </div>
 
           <div style={{ marginBottom: "20px" }}>
-            <label style={{ fontSize: "13px", color: "#555", fontWeight: 500 }}>CSV file</label>
+            <label style={{ fontSize: "13px", color: "#555", fontWeight: 500 }}>CSV or Excel file</label>
             <br />
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
               style={{ marginTop: "8px", color: "#1a1a1a" }}
             />

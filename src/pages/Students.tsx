@@ -210,9 +210,8 @@ function Students() {
               <br />
               <input
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={(e) => setBulkFile(e.target.files?.[0] || null)}
-                style={{ marginTop: "8px", color: "#1a1a1a" }}
               />
             </div>
             <button
