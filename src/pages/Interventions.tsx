@@ -36,6 +36,20 @@ interface InterventionInfo {
   resolvedAt: string | null;
 }
 
+const INTERVENTION_TYPES = [
+  "Check-in Meeting",
+  "Academic Advising / Coaching Session",
+  "Referral to Tutoring / Academic Support Centre",
+  "Referral to Counseling Services",
+  "Attendance Follow-up",
+  "Referral to Financial Aid Office",
+  "Study Skills Workshop Referral",
+  "Peer Mentoring Referral",
+  "Extension / Deadline Accommodation",
+  "Escalation to Course Coordinator / HOD",
+  "Other",
+];
+
 function Interventions() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [interventions, setInterventions] = useState<InterventionInfo[]>([]);
@@ -48,7 +62,8 @@ function Interventions() {
 
   const [showForm, setShowForm] = useState(false);
   const [studentID, setStudentID] = useState("");
-  const [interventionType, setInterventionType] = useState("");
+  const [interventionType, setInterventionType] = useState(INTERVENTION_TYPES[0]);
+  const [customType, setCustomType] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -119,16 +134,21 @@ function Interventions() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentID) return;
+
+    const finalType = interventionType === "Other" ? customType.trim() : interventionType;
+    if (!finalType) return;
+
     setCreating(true);
     setCreateError("");
 
     try {
       await api.post("/interventions/", {
         studentID: Number(studentID),
-        interventionType,
+        interventionType: finalType,
         description,
       });
-      setInterventionType("");
+      setInterventionType(INTERVENTION_TYPES[0]);
+      setCustomType("");
       setDescription("");
       setShowForm(false);
       await loadInterventions();
@@ -238,15 +258,32 @@ function Interventions() {
             <div>
               <label style={{ fontSize: "13px", color: "#555", fontWeight: 500 }}>Intervention type</label>
               <br />
-              <input
-                type="text"
+              <select
                 value={interventionType}
                 onChange={(e) => setInterventionType(e.target.value)}
-                required
-                placeholder="e.g. Check-in Meeting"
-                style={{ padding: "8px 12px", marginTop: "6px", borderRadius: "6px", border: "1px solid #ddd", width: "100%", color: "#1a1a1a", background: "#fff" }}
-              />
+                style={{ padding: "10px 14px", marginTop: "6px", borderRadius: "8px", border: "1.5px solid #d0d0d8", width: "100%", boxSizing: "border-box", color: "#1a1a1a", background: "#fff" }}
+              >
+                {INTERVENTION_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
+
+            {interventionType === "Other" && (
+              <div>
+                <label style={{ fontSize: "13px", color: "#555", fontWeight: 500 }}>Specify type</label>
+                <br />
+                <input
+                  type="text"
+                  value={customType}
+                  onChange={(e) => setCustomType(e.target.value)}
+                  required
+                  placeholder="Describe the intervention type"
+                  style={{ padding: "8px 12px", marginTop: "6px", borderRadius: "6px", border: "1px solid #ddd", width: "100%", color: "#1a1a1a", background: "#fff" }}
+                />
+              </div>
+            )}
+
             <div>
               <label style={{ fontSize: "13px", color: "#555", fontWeight: 500 }}>Description</label>
               <br />
@@ -255,6 +292,7 @@ function Interventions() {
                 onChange={(e) => setDescription(e.target.value)}
                 required
                 rows={3}
+                placeholder="What was discussed or arranged, and any relevant context"
                 style={{ padding: "8px 12px", marginTop: "6px", borderRadius: "6px", border: "1px solid #ddd", width: "100%", color: "#1a1a1a", fontFamily: "inherit", background: "#fff" }}
               />
             </div>
