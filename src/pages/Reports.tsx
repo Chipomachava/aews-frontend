@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 import api from "../api";
 import DashboardLayout from "../layouts/DashboardLayout";
-import { IconFileSearch } from "@tabler/icons-react";
+import { IconFileSearch, IconFileSpreadsheet } from "@tabler/icons-react";
 
 interface UserInfo {
   userID: number;
@@ -98,33 +99,38 @@ function Reports() {
   const handleDownload = () => {
     if (results.length === 0) return;
 
-    const headers = ["Student Number", "Full Name", "Risk Score", "Risk Level", "Open Interventions", "Resolved Interventions"];
-    const rows = results.map((r) => [
-      r.studentNumber,
-      r.fullName,
-      r.totalScore,
-      r.riskLabel,
-      r.openInterventions,
-      r.resolvedInterventions,
-    ]);
+    const rows = results.map((r) => ({
+      "Student Number": r.studentNumber,
+      "Full Name": r.fullName,
+      "Risk Score": r.totalScore,
+      "Risk Level": r.riskLabel,
+      "Partial Data": r.isPartial ? "Yes" : "No",
+      "Open Interventions": r.openInterventions,
+      "Resolved Interventions": r.resolvedInterventions,
+      "Computed At": new Date(r.computedAt).toLocaleString(),
+    }));
 
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
+    const worksheet = XLSX.utils.json_to_sheet(rows);
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
+    // Set sensible column widths so it looks clean when opened in Excel
+    worksheet["!cols"] = [
+      { wch: 16 }, // Student Number
+      { wch: 24 }, // Full Name
+      { wch: 12 }, // Risk Score
+      { wch: 12 }, // Risk Level
+      { wch: 12 }, // Partial Data
+      { wch: 18 }, // Open Interventions
+      { wch: 20 }, // Resolved Interventions
+      { wch: 20 }, // Computed At
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Risk Report");
 
     const moduleName = modules.find((m) => m.moduleID === selectedModuleID)?.moduleCode || "report";
     const dateStr = new Date().toISOString().split("T")[0];
-    link.download = `${moduleName}_risk_report_${dateStr}.csv`;
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    XLSX.writeFile(workbook, `${moduleName}_risk_report_${dateStr}.xlsx`);
   };
 
   const riskColor = (label: string) => {
@@ -211,9 +217,10 @@ function Reports() {
             {results.length > 0 && (
               <button
                 onClick={handleDownload}
-                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#fff", color: "#4338ca", border: "1px solid #4338ca", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: 500 }}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#fff", color: "#1e8e3e", border: "1px solid #1e8e3e", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: 500 }}
               >
-                Download CSV
+                <IconFileSpreadsheet size={15} />
+                Download Excel
               </button>
             )}
           </div>
