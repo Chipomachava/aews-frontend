@@ -15,5 +15,7 @@ api.interceptors.request.use((config) => {
 export default api;
 export const logout = () => {
   localStorage.removeItem("accessToken");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("userEmail");
   window.location.href = "/login";
 };

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   IconLayoutDashboard,
   IconBooks,
@@ -25,36 +25,69 @@ interface Props {
   userRole?: string;
 }
 
+const readStored = (key: string) => {
+  try {
+    return localStorage.getItem(key) || undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 function DashboardLayout({ children, userEmail, userRole }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const role = userRole ?? readStored("userRole");
+  const email = userEmail ?? readStored("userEmail");
+
+  useEffect(() => {
+    try {
+      if (userRole) localStorage.setItem("userRole", userRole);
+      if (userEmail) localStorage.setItem("userEmail", userEmail);
+    } catch {
+      return;
+    }
+  }, [userRole, userEmail]);
 
   const goTo = (path: string) => {
     navigate(path);
     setMobileOpen(false);
   };
 
-  const navItem = (icon: ReactNode, label: string, path: string) => (
-    <div
-      onClick={() => goTo(path)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        padding: "10px 16px",
-        cursor: "pointer",
-        borderRadius: "6px",
-        fontSize: "14px",
-        color: "#1a1a1a",
-        fontWeight: 500,
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0f5")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-    >
-      {icon}
-      {label}
-    </div>
-  );
+  const navItem = (icon: ReactNode, label: string, path: string) => {
+    const active = location.pathname === path;
+    return (
+      <div
+        onClick={() => goTo(path)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          padding: "10px 16px",
+          cursor: "pointer",
+          borderRadius: "6px",
+          fontSize: "14px",
+          color: active ? "#4338ca" : "#1a1a1a",
+          fontWeight: active ? 600 : 500,
+          background: active ? "#e9e9f2" : "transparent",
+          borderLeft: active ? "3px solid #4338ca" : "3px solid transparent",
+          transition: "background 0.12s ease",
+        }}
+        onMouseEnter={(e) => {
+          if (!active) e.currentTarget.style.background = "#f0f0f5";
+        }}
+        onMouseLeave={(e) => {
+          if (!active) e.currentTarget.style.background = "transparent";
+        }}
+        onMouseDown={(e) => (e.currentTarget.style.background = "#dcdce8")}
+        onMouseUp={(e) => (e.currentTarget.style.background = active ? "#e9e9f2" : "#f0f0f5")}
+      >
+        {icon}
+        {label}
+      </div>
+    );
+  };
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "sans-serif" }}>
@@ -103,10 +136,8 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
         }
       `}</style>
 
-      {/* Mobile backdrop */}
       <div className={`aews-backdrop ${mobileOpen ? "open" : ""}`} onClick={() => setMobileOpen(false)} />
 
-      {/* Sidebar */}
       <div className={`aews-sidebar ${mobileOpen ? "open" : ""}`}>
         <div style={{ flex: 1, overflowY: "auto", padding: "20px 12px 0" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 8px 24px" }}>
@@ -133,7 +164,7 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
           {navItem(<IconClipboardList size={18} />, "Interventions", "/interventions")}
           {navItem(<IconFileText size={18} />, "Reports", "/reports")}
 
-          {userRole === "Admin" && (
+          {role === "Admin" && (
             <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #eee" }}>
               <div style={{ fontSize: "11px", color: "#999", padding: "0 16px 8px", fontWeight: 600, letterSpacing: "0.5px" }}>ADMIN</div>
               {navItem(<IconUsers size={18} />, "User Management", "/users")}
@@ -167,7 +198,6 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
         </div>
       </div>
 
-      {/* Main content */}
       <div className="aews-main" style={{ flex: 1, background: "#f7f7fa", minWidth: 0 }}>
         <div
           style={{
@@ -189,8 +219,8 @@ function DashboardLayout({ children, userEmail, userRole }: Props) {
           <div style={{ flex: 1 }} />
 
           <div style={{ textAlign: "right", marginRight: "12px" }}>
-            <div style={{ fontSize: "13px", fontWeight: 600 }}>{userEmail}</div>
-            <div style={{ fontSize: "12px", color: "#888" }}>{userRole}</div>
+            <div style={{ fontSize: "13px", fontWeight: 600 }}>{email}</div>
+            <div style={{ fontSize: "12px", color: "#888" }}>{role}</div>
           </div>
           <div
             onClick={logout}

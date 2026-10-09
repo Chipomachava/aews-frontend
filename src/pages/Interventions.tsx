@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../api";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { IconPlus, IconCheck } from "@tabler/icons-react";
+import InterventionThread from "../components/InterventionThread";
 
 interface UserInfo {
   userID: number;
@@ -26,6 +27,8 @@ interface RiskStudent {
 interface InterventionInfo {
   interventionID: number;
   studentID: number;
+  studentNumber: string | null;
+  studentInitials: string | null;
   lecturerID: number;
   interventionType: string;
   description: string;
@@ -35,6 +38,26 @@ interface InterventionInfo {
   createdAt: string;
   resolvedAt: string | null;
 }
+
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_FILES = 5;
+const ALLOWED_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".txt", ".csv", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"];
+
+const checkFiles = (files: File[]): string => {
+  if (files.length > MAX_FILES) return `You can attach at most ${MAX_FILES} files at a time`;
+  for (const f of files) {
+    const ext = f.name.includes(".") ? f.name.slice(f.name.lastIndexOf(".")).toLowerCase() : "";
+    if (!ALLOWED_EXTENSIONS.includes(ext)) return `File type '${ext || "unknown"}' is not allowed (${f.name})`;
+    if (f.size > MAX_FILE_BYTES) return `${f.name} is larger than 5 MB`;
+    if (f.size === 0) return `${f.name} is empty`;
+  }
+  return "";
+};
+
+const studentLabel = (iv: InterventionInfo) =>
+  iv.studentNumber
+    ? `${iv.studentNumber}${iv.studentInitials ? ` (${iv.studentInitials})` : ""}`
+    : `Student ${iv.studentID}`;
 
 const INTERVENTION_TYPES = [
   "Check-in Meeting",
@@ -75,8 +98,13 @@ function Interventions() {
   const [notifyingID, setNotifyingID] = useState<number | null>(null);
   const [notifyChannel, setNotifyChannel] = useState("Email");
   const [notifyMessage, setNotifyMessage] = useState("");
+  const [notifyFiles, setNotifyFiles] = useState<File[]>([]);
+  const [notifyError, setNotifyError] = useState("");
   const [notifying, setNotifying] = useState(false);
   const [notifySuccess, setNotifySuccess] = useState("");
+
+  const [threadOpenID, setThreadOpenID] = useState<number | null>(null);
+  const [threadRefresh, setThreadRefresh] = useState(0);
 
   const loadInterventions = async () => {
     try {
@@ -173,20 +201,47 @@ function Interventions() {
     }
   };
 
+  const openNotify = (interventionID: number) => {
+    setNotifyingID(interventionID);
+    setNotifyMessage("");
+    setNotifyFiles([]);
+    setNotifyError("");
+    setNotifySuccess("");
+  };
+
+  const pickNotifyFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const problem = checkFiles(files);
+    if (problem) {
+      setNotifyError(problem);
+      setNotifyFiles([]);
+      e.target.value = "";
+      return;
+    }
+    setNotifyError("");
+    setNotifyFiles(files);
+  };
+
   const handleNotify = async (interventionID: number) => {
-    if (!notifyMessage) return;
+    if (!notifyMessage.trim()) return;
     setNotifying(true);
+    setNotifyError("");
     setNotifySuccess("");
     try {
-      const res = await api.post(`/interventions/${interventionID}/notify`, {
-        channel: notifyChannel,
-        message: notifyMessage,
-      });
+      const form = new FormData();
+      form.append("channel", notifyChannel);
+      form.append("message", notifyMessage.trim());
+      notifyFiles.forEach((f) => form.append("files", f));
+
+      const res = await api.post(`/interventions/${interventionID}/notify`, form);
       setNotifySuccess(res.data.message);
       setNotifyingID(null);
       setNotifyMessage("");
+      setNotifyFiles([]);
+      setThreadOpenID(interventionID);
+      setThreadRefresh((k) => k + 1);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to send notification");
+      setNotifyError(err.response?.data?.detail || "Failed to send notification");
     } finally {
       setNotifying(false);
     }
@@ -329,7 +384,7 @@ function Interventions() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
                       <div style={{ fontWeight: 600, color: "#1a1a1a", fontSize: "14px" }}>
-                        {iv.interventionType} — Student {iv.studentID}
+                        {iv.interventionType} — {studentLabel(iv)}
                       </div>
                       <div style={{ color: "#666", fontSize: "13px", marginTop: "4px" }}>{iv.description}</div>
                       <div style={{ color: "#888", fontSize: "12px", marginTop: "6px" }}>
@@ -365,10 +420,41 @@ function Interventions() {
                           rows={2}
                           style={{ padding: "6px 10px", borderRadius: "6px", border: "1.5px solid #d0d0d8", fontSize: "13px", color: "#1a1a1a", background: "#fff", fontFamily: "inherit" }}
                         />
+
+                        <div style={{ borderTop: "1px dashed #e0e0e8", paddingTop: "8px" }}>
+                          <label style={{ fontSize: "12px", color: "#555", fontWeight: 500 }}>
+                            Resources for the student (optional)
+                          </label>
+                          <p style={{ fontSize: "11px", color: "#999", margin: "2px 0 6px" }}>
+                            Study guide, past paper, referral form, timetable — sent with the message.
+                          </p>
+                          <input
+                            type="file"
+                            multiple
+                            accept={ALLOWED_EXTENSIONS.join(",")}
+                            onChange={pickNotifyFiles}
+                            style={{ fontSize: "13px", color: "#1a1a1a" }}
+                          />
+                          {notifyFiles.length > 0 && (
+                            <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
+                              {notifyFiles.length} file(s) will be sent: {notifyFiles.map((f) => f.name).join(", ")}
+                            </div>
+                          )}
+                          <div style={{ fontSize: "11px", color: "#999", marginTop: "4px" }}>
+                            Up to {MAX_FILES} files, 5 MB each: PDF, images, Word, Excel, PowerPoint, TXT or CSV.
+                          </div>
+                        </div>
+
+                        {notifyError && (
+                          <div style={{ padding: "8px 10px", background: "#fde8e8", color: "#c0392b", borderRadius: "6px", fontSize: "13px" }}>
+                            {notifyError}
+                          </div>
+                        )}
+
                         <div style={{ display: "flex", gap: "8px" }}>
                           <button
                             onClick={() => handleNotify(iv.interventionID)}
-                            disabled={notifying || !notifyMessage}
+                            disabled={notifying || !notifyMessage.trim()}
                             style={{ padding: "6px 12px", background: "#4338ca", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}
                           >
                             {notifying ? "Sending..." : "Send"}
@@ -383,13 +469,24 @@ function Interventions() {
                       </div>
                     ) : (
                       <button
-                        onClick={() => setNotifyingID(iv.interventionID)}
+                        onClick={() => openNotify(iv.interventionID)}
                         style={{ padding: "6px 12px", background: "#fff", color: "#4338ca", border: "1px solid #4338ca", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}
                       >
                         Notify student
                       </button>
                     )}
+
+                    <button
+                      onClick={() => setThreadOpenID(threadOpenID === iv.interventionID ? null : iv.interventionID)}
+                      style={{ padding: "6px 12px", background: threadOpenID === iv.interventionID ? "#4338ca" : "#fff", color: threadOpenID === iv.interventionID ? "#fff" : "#4338ca", border: "1px solid #4338ca", borderRadius: "6px", cursor: "pointer", fontSize: "13px" }}
+                    >
+                      {threadOpenID === iv.interventionID ? "Hide thread" : "View thread"}
+                    </button>
                   </div>
+
+                  {threadOpenID === iv.interventionID && (
+                    <InterventionThread interventionID={iv.interventionID} refreshKey={threadRefresh} />
+                  )}
 
                   {iv.status === "Open" && (
                     <div style={{ marginTop: "12px" }}>
